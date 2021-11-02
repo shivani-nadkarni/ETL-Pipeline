@@ -3,7 +3,6 @@ import datetime
 import pandas as pd
 import json
 from io import StringIO
-import sqlalchemy
 import sqlite3
 
 def check_if_valid_data(df: pd.DataFrame) -> bool:
@@ -23,21 +22,23 @@ def check_if_valid_data(df: pd.DataFrame) -> bool:
         raise Exception("Null value found.")
         
     # check if songs are of yesterday's date
-    yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-    yesterday = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+    # yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+    # yesterday = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    print(yesterday)
+    # print(yesterday)
     
-    timestamps = df["timestamp"].tolist()
-    for timestamp in timestamps:
-        if datetime.datetime.strptime(timestamp, "%Y-%m-%d") != yesterday:
-            raise Exception("At least one of the returned songs are not from yesterday") 
+    # timestamps = df["timestamp"].tolist()
+    # for timestamp in timestamps:
+    #     if datetime.datetime.strptime(timestamp, "%Y-%m-%d") != yesterday:
+    #         raise Exception("At least one of the returned songs are not from yesterday") 
 
 # main 
 if __name__ == "__main__":
 	# authorisation token from spotify
-	TOKEN = "BQA9xBaVA8nAyK4eZZAzq4uXyJ0DB1lxRAkVAZsf5OY6HumZ_eryNRT6plAcfPq5oGHmRJY9O04S904NyzKrriBQqawek3eT33i6EmJyJwaSTtaihPMu7fj3d6jA9tSto5sNfVXmFTkYF1C2or721eK16SSOH4Cqdvs_FbHB"
+	TOKEN = "BQCz3SPIjEo9rarivqpOarIay9mNUFYdr3acEyy1n_KBWhuQXwHcWaeUQgUE_YE-ile5ff2zrqL5NtkUjAoceDM08Lk8-kAGqs_ZvgI_fFLyK-v9Q0FeNFux0iFZoq5hsRBMBjDiDd7bJ-uqXP-M7OnyscrDDSp_WwtiBLXk"
 	DATABASE_LOCATION = "sqlite:///songs.db"
+	TABLE_NAME = "my_played_tracks"
+
 	headers = {
 		"Accept" : "application/json",
 		"Content-Type" : "application/json",
@@ -46,7 +47,7 @@ if __name__ == "__main__":
 
 	# converting date to epoch milliseconds
 	today = datetime.datetime.now()
-	yesterday = today - datetime.timedelta(days=1)
+	yesterday = today - datetime.timedelta(days=60)
 
 	yesterday_in_unix = int(yesterday.timestamp())
 
@@ -71,6 +72,7 @@ if __name__ == "__main__":
 	    played_at.append(song['played_at'])
 	    timestamp.append(song['played_at'][:10])
 
+	# create a dictionary containing the above lists    
 	songs_dict = {
 	    "song_name" : song_names,
 	    "artists" : artists,
@@ -81,18 +83,41 @@ if __name__ == "__main__":
 	song_df = pd.DataFrame(songs_dict, columns = ["song_name", "artists", "played_at", "timestamp"])
 
 	print(song_df)
-
 	# Validate spotify data
-	#check_if_valid_data(song_df)
+	check_if_valid_data(song_df)
 
 	# Load stage
 
-	# create an Sql Connection to our SQLite Database
-	engine = sqlalchemy.create_engine(DATABASE_LOCATION)
+	# create a connection object - which represents the database
+	conn = sqlite3.connect('songs.db')
 
-	conn = engine.connect()
+	# Create the cursor object
+	cursor = conn.cursor()
 
-	print(connected succesfully)
+	# writing sql query to create the table
+	sql_query = """
+	CREATE TABLE IF NOT EXISTS my_played_tracks(
+		song_name VARCHAR(200),
+		artists VARCHAR(200),
+		played_at VARCHAR(200),
+		timestamp VARCHAR(200),
+		CONSTRAINT primay_key_constraint PRIMARY KEY (played_at)
+	)
+	"""
+	# execute the sql query to create a new table
+	cursor.execute(sql_query)
+
+	# save the dataframe to the database
+	try:
+		song_df.to_sql(TABLE_NAME, conn, index=False, if_exists="append")
+	except Exception as e:
+		print(e)
+
+	# commit and close the database connection
+	conn.commit()
+	conn.close()
+
+	print("Connection closed succesfully.")
 
 	## query = ......
 	## conn.execute(query)
