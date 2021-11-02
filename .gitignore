@@ -1,4 +1,4 @@
 ETL.ipynb
-database/
-songs.db
-
+database/ 
+songs.db 
+.ipynb_checkpoints/*
